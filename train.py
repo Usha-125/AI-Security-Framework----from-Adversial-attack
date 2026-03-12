@@ -1,48 +1,50 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+from model import SimpleCNN
 
-from models.cnn import SimpleCNN
-from utils import get_data_loaders
+# Device
+device = torch.device("cpu")
 
-def train():
+# Transform
+transform = transforms.Compose([
+    transforms.ToTensor()
+])
 
-    device = torch.device("cpu")
+# Dataset
+train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.MNIST(root='./data', train=False, transform=transform)
 
-    train_loader, test_loader = get_data_loaders()
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=1000, shuffle=False)
 
-    model = SimpleCNN().to(device)
+# Model
+model = SimpleCNN().to(device)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+# Loss and Optimizer
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    epochs = 5
+# Training Loop
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    
+    for images, labels in train_loader:
+        images, labels = images.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        total_loss += loss.item()
+    
+    print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
 
-    for epoch in range(epochs):
+# Save model
+torch.save(model.state_dict(), "models/mnist_cnn.pth")
 
-        model.train()
-        total_loss = 0
-
-        for images, labels in train_loader:
-
-            images, labels = images.to(device), labels.to(device)
-
-            optimizer.zero_grad()
-
-            outputs = model(images)
-
-            loss = criterion(outputs, labels)
-
-            loss.backward()
-
-            optimizer.step()
-
-            total_loss += loss.item()
-
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss:.4f}")
-
-    torch.save(model.state_dict(), "mnist_cnn.pth")
-    print("Model saved!")
-
-if __name__ == "__main__":
-    train()
+print("Training complete.")
